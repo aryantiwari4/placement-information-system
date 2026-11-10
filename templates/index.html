@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resume Information Extractor</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header class="app-header">
+        <div class="header-container">
+            <div class="logo-group">
+                <span class="logo-icon">&#128196;</span>
+                <span class="logo-title">Resume Information Extractor</span>
+            </div>
+            <span class="header-tag">Modular Parser Utility</span>
+        </div>
+    </header>
+
+    <main class="main-container">
+        <div class="utility-card upload-card">
+            <div class="card-header">
+                <h1>Extract Resume Information</h1>
+                <p class="subtitle">Extract candidate contact details, skills, education, and work history from PDF resumes using transparent rule-based parsing.</p>
+            </div>
+
+            {% if error %}
+            <div class="alert alert-error" role="alert">
+                <span class="alert-icon">&#9888;</span>
+                <span class="alert-text">{{ error }}</span>
+            </div>
+            {% endif %}
+
+            <form action="{{ url_for('extract') }}" method="post" enctype="multipart/form-data" class="upload-form" id="resumeForm">
+                <div class="drop-zone" id="dropZone">
+                    <div class="drop-zone-icon">&#128194;</div>
+                    <label for="resume" class="file-label">
+                        <span class="file-select-prompt">Choose a PDF file</span> or drag &amp; drop here
+                    </label>
+                    <input id="resume" name="resume" type="file" accept=".pdf" required class="file-input">
+                    <div class="selected-file-name" id="fileNameDisplay">No file chosen</div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary" id="submitBtn">
+                        Extract information
+                    </button>
+                </div>
+            </form>
+
+            <div class="card-footer-notes">
+                <p class="note-text">&#128274; <strong>Privacy &amp; Security:</strong> Resumes are processed locally in memory. No data is stored permanently or sent to external APIs.</p>
+                <p class="note-text">&#8505; <strong>Supported format:</strong> Text-based PDF (up to 16MB). For scanned or image-based PDFs, text must be selectable.</p>
+            </div>
+        </div>
+
+        <div class="methodology-card">
+            <h3>How the parser works</h3>
+            <div class="grid-three">
+                <div class="step-item">
+                    <div class="step-num">1</div>
+                    <div class="step-body">
+                        <strong>Text Extraction &amp; Cleaning</strong>
+                        <p>Extracts raw text streams using <code>pdfplumber</code> and normalizes whitespace, bullets, and line boundaries.</p>
+                    </div>
+                </div>
+                <div class="step-item">
+                    <div class="step-num">2</div>
+                    <div class="step-body">
+                        <strong>Section Identification</strong>
+                        <p>Identifies standard headings (Education, Experience, Skills, Projects, Certifications) using an alias dictionary.</p>
+                    </div>
+                </div>
+                <div class="step-item">
+                    <div class="step-num">3</div>
+                    <div class="step-body">
+                        <strong>Deterministic Extraction</strong>
+                        <p>Applies regex for contacts, controlled vocabulary for skills, date ranges, and returns structured data with validation.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="app-footer">
+        <p>Resume Information Extractor &bull; Built with Python &amp; Flask &bull; Transparent, Explainable Parsing</p>
+    </footer>
+
+    <script>
+        const fileInput = document.getElementById('resume');
+        const fileNameDisplay = document.getElementById('fileNameDisplay');
+        const dropZone = document.getElementById('dropZone');
+        const submitBtn = document.getElementById('submitBtn');
+
+        fileInput.addEventListener('change', (e) => {
+            if (fileInput.files.length > 0) {
+                const file = fileInput.files[0];
+                fileNameDisplay.textContent = `${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+                fileNameDisplay.classList.add('has-file');
+            } else {
+                fileNameDisplay.textContent = 'No file chosen';
+                fileNameDisplay.classList.remove('has-file');
+            }
+        });
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                dropZone.classList.add('drag-active');
+            }, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('drag-active');
+            }, false);
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            if (files.length > 0 && files[0].name.toLowerCase().endsWith('.pdf')) {
+                fileInput.files = files;
+                fileNameDisplay.textContent = `${files[0].name} (${(files[0].size / 1024).toFixed(1)} KB)`;
+                fileNameDisplay.classList.add('has-file');
+            } else {
+                alert('Please drop a valid PDF file.');
+            }
+        });
+
+        document.getElementById('resumeForm').addEventListener('submit', () => {
+            submitBtn.textContent = 'Processing PDF...';
+            submitBtn.disabled = true;
+        });
+    </script>
+</body>
+</html>
+

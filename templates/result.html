@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Extracted Resume Details - Resume Information Extractor</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header class="app-header">
+        <div class="header-container">
+            <div class="logo-group">
+                <a href="{{ url_for('home') }}" class="header-back-link">&#8592; Back</a>
+                <span class="logo-title">Resume Information Extractor</span>
+            </div>
+            <div class="header-actions">
+                <a href="{{ url_for('home') }}" class="btn btn-secondary btn-sm">Process Another Resume</a>
+                <button type="button" class="btn btn-outline btn-sm" onclick="downloadJSON()">Export JSON</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="main-container result-layout">
+        <!-- Header Banner with Candidate Name & Extraction Status -->
+        <section class="candidate-overview-card">
+            <div class="candidate-header-row">
+                <div>
+                    <span class="section-label">Candidate Name</span>
+                    <h1 class="candidate-name">
+                        {% if result.name %}
+                            {{ result.name }}
+                        {% else %}
+                            <span class="text-muted">Not detected</span>
+                        {% endif %}
+                    </h1>
+                </div>
+                <div class="status-badge-container">
+                    <span class="status-pill status-{{ result.status.name | lower | replace(' ', '-') }}">
+                        Name: {{ result.status.name }}
+                    </span>
+                    {% if filename %}
+                    <span class="file-tag">&#128196; {{ filename }}</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Validation Warnings (if any) -->
+            {% if result.warnings and result.warnings|length > 0 %}
+            <div class="alert alert-warning">
+                <div class="alert-header">
+                    <span class="alert-icon">&#9888;</span>
+                    <strong>Parser Observations &amp; Verification Items ({{ result.warnings|length }}):</strong>
+                </div>
+                <ul class="warning-list">
+                    {% for warn in result.warnings %}
+                    <li>{{ warn }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% else %}
+            <div class="alert alert-success">
+                <span class="alert-icon">&#10003;</span>
+                <span>All key fields validated cleanly with no parsing warnings.</span>
+            </div>
+            {% endif %}
+        </section>
+
+        <!-- Two Column Content Grid -->
+        <div class="dashboard-grid">
+            <!-- Left Column: Contact, Skills, Certifications -->
+            <div class="column-sidebar">
+                <!-- Contact Card -->
+                <div class="utility-card info-card">
+                    <div class="card-title-row">
+                        <h2>Contact Information</h2>
+                        <span class="status-pill status-{{ result.status.email | lower | replace(' ', '-') }}">
+                            {{ result.status.email }}
+                        </span>
+                    </div>
+
+                    <div class="field-group">
+                        <label class="field-label">Email Address</label>
+                        {% if result.contact.email %}
+                            <a href="mailto:{{ result.contact.email }}" class="field-value link">{{ result.contact.email }}</a>
+                        {% else %}
+                            <span class="field-value text-muted">Not detected</span>
+                        {% endif %}
+                    </div>
+
+                    <div class="field-group">
+                        <label class="field-label">Phone Number</label>
+                        {% if result.contact.phone %}
+                            <a href="tel:{{ result.contact.phone }}" class="field-value">{{ result.contact.phone }}</a>
+                        {% else %}
+                            <span class="field-value text-muted">Not detected</span>
+                        {% endif %}
+                    </div>
+
+                    <div class="field-group">
+                        <label class="field-label">Links &amp; Profiles ({{ result.contact.links|length }})</label>
+                        {% if result.contact.links and result.contact.links|length > 0 %}
+                            <ul class="links-list">
+                                {% for link in result.contact.links %}
+                                <li>
+                                    <a href="{% if not link.startswith('http') %}https://{% endif %}{{ link }}" target="_blank" rel="noopener noreferrer" class="link-item">
+                                        &#128279; {{ link }}
+                                    </a>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        {% else %}
+                            <span class="field-value text-muted">No web links detected</span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Skills Card -->
+                <div class="utility-card info-card">
+                    <div class="card-title-row">
+                        <h2>Technical Skills</h2>
+                        <span class="status-pill status-{{ result.status.skills | lower | replace(' ', '-') }}">
+                            {{ result.skills|length }} Detected
+                        </span>
+                    </div>
+                    <p class="card-subtext">Matched against controlled technical vocabulary</p>
+
+                    {% if result.skills and result.skills|length > 0 %}
+                    <div class="skills-pill-group">
+                        {% for skill in result.skills %}
+                        <span class="skill-pill">{{ skill }}</span>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="empty-state-text">No skills from the controlled vocabulary were identified.</p>
+                    {% endif %}
+                </div>
+
+                <!-- Certifications Card -->
+                <div class="utility-card info-card">
+                    <div class="card-title-row">
+                        <h2>Certifications</h2>
+                        <span class="status-pill status-{{ result.status.certifications | lower | replace(' ', '-') }}">
+                            {{ result.status.certifications }}
+                        </span>
+                    </div>
+
+                    {% if result.certifications and result.certifications|length > 0 %}
+                    <ul class="cert-list">
+                        {% for cert in result.certifications %}
+                        <li class="cert-item">&#127891; {{ cert }}</li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <p class="empty-state-text">No certifications section or items detected.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Right Column: Experience, Education, Projects -->
+            <div class="column-main">
+                <!-- Experience Section -->
+                <div class="utility-card info-card">
+                    <div class="card-title-row">
+                        <h2>Work Experience</h2>
+                        <span class="status-pill status-{{ result.status.experience | lower | replace(' ', '-') }}">
+                            {{ result.status.experience }}
+                        </span>
+                    </div>
+
+                    {% if result.experience and result.experience|length > 0 %}
+                    <div class="entries-timeline">
+                        {% for exp in result.experience %}
+                        <div class="entry-item">
+                            <div class="entry-header">
+                                <h3 class="entry-title">{{ exp.title }}</h3>
+                                {% if exp.date_range %}
+                                <span class="date-badge">&#128197; {{ exp.date_range }}</span>
+                                {% endif %}
+                            </div>
+                            {% if exp.bullets and exp.bullets|length > 0 %}
+                            <ul class="entry-bullets">
+                                {% for bullet in exp.bullets %}
+                                <li>{{ bullet }}</li>
+                                {% endfor %}
+                            </ul>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="empty-state-text">No work experience entries identified in the parsed document.</p>
+                    {% endif %}
+                </div>
+
+                <!-- Education Section -->
+                <div class="utility-card info-card">
+                    <div class="card-title-row">
+                        <h2>Education &amp; Qualifications</h2>
+                        <span class="status-pill status-{{ result.status.education | lower | replace(' ', '-') }}">
+                            {{ result.status.education }}
+                        </span>
+                    </div>
+
+                    {% if result.education and result.education|length > 0 %}
+                    <div class="entries-timeline">
+                        {% for edu in result.education %}
+                        <div class="entry-item">
+                            <div class="entry-header">
+                                <div>
+                                    <h3 class="entry-title">{{ edu.title }}</h3>
+                                    {% if edu.institution %}
+                                    <div class="entry-institution">&#127979; {{ edu.institution }}</div>
+                                    {% endif %}
+                                </div>
+                                {% if edu.date_range %}
+                                <span class="date-badge">&#128197; {{ edu.date_range }}</span>
+                                {% endif %}
+                            </div>
+                            {% if edu.details and edu.details|length > 0 %}
+                            <ul class="entry-bullets">
+                                {% for detail in edu.details %}
+                                <li>{{ detail }}</li>
+                                {% endfor %}
+                            </ul>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="empty-state-text">No formal education section identified.</p>
+                    {% endif %}
+                </div>
+
+                <!-- Projects Section -->
+                <div class="utility-card info-card">
+                    <div class="card-title-row">
+                        <h2>Key Projects</h2>
+                        <span class="status-pill status-{{ result.status.projects | lower | replace(' ', '-') }}">
+                            {{ result.status.projects }}
+                        </span>
+                    </div>
+
+                    {% if result.projects and result.projects|length > 0 %}
+                    <div class="entries-timeline">
+                        {% for proj in result.projects %}
+                        <div class="entry-item">
+                            <div class="entry-header">
+                                <h3 class="entry-title">{{ proj.title }}</h3>
+                                {% if proj.date_range %}
+                                <span class="date-badge">&#128197; {{ proj.date_range }}</span>
+                                {% endif %}
+                            </div>
+
+                            {% if proj.tech and proj.tech|length > 0 %}
+                            <div class="tech-tags">
+                                {% for t in proj.tech %}
+                                <span class="tech-tag">{{ t }}</span>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+
+                            {% if proj.description and proj.description|length > 0 %}
+                            <ul class="entry-bullets">
+                                {% for desc in proj.description %}
+                                <li>{{ desc }}</li>
+                                {% endfor %}
+                            </ul>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="empty-state-text">No projects section detected.</p>
+                    {% endif %}
+                </div>
+
+                <!-- Transparency Inspector (Raw Sections & JSON) -->
+                <div class="utility-card info-card transparency-card">
+                    <div class="card-title-row">
+                        <h2>Document Inspector &amp; Transparency</h2>
+                        <button type="button" class="btn btn-outline btn-xs" onclick="toggleTransparency()">
+                            Toggle View
+                        </button>
+                    </div>
+                    <p class="card-subtext">Inspect how the parser partitioned sections and constructed deterministic outputs.</p>
+
+                    <div id="transparencyBox" class="transparency-content" style="display: none;">
+                        {% if result.raw_sections %}
+                        <h4>Detected Document Sections:</h4>
+                        <div class="section-tabs">
+                            {% for section_name, section_content in result.raw_sections.items() %}
+                            <div class="raw-section-block">
+                                <span class="raw-section-name">Section: {{ section_name | upper }}</span>
+                                <pre class="code-preview"><code>{{ section_content }}</code></pre>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+
+                        <h4>Structured JSON Representation:</h4>
+                        <pre class="code-preview" id="jsonPreview"><code>{{ result | tojson(indent=2) }}</code></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="app-footer">
+        <p>Resume Information Extractor &bull; Explainable &amp; Rule-Based &bull; Flask Web Application</p>
+    </footer>
+
+    <script>
+        function toggleTransparency() {
+            const box = document.getElementById('transparencyBox');
+            if (box.style.display === 'none') {
+                box.style.display = 'block';
+            } else {
+                box.style.display = 'none';
+            }
+        }
+
+        function downloadJSON() {
+            const dataStr = document.getElementById('jsonPreview').innerText;
+            const blob = new Blob([dataStr], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = "{{ result.name or 'extracted_resume' }}_parsed.json";
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>
+
